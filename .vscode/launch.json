@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: mnist.py (ai env)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/mnist.py",
+      "python": "C:\\Users\\tw188\\miniconda3\\envs\\ai\\python.exe",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}

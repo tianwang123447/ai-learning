@@ -1,3 +1,11 @@
 {
-  "python.defaultInterpreterPath": "C:\\Users\\tw188\\miniconda3\\python.exe"
+  "python.defaultInterpreterPath": "C:\\Users\\tw188\\miniconda3\\envs\\ai\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  // Code Runner 的 ▶ 按钮不读 defaultInterpreterPath，必须显式指定解释器，否则会用 PATH 里的 `python`（微软商店占位程序，退出码 9009）
+  "code-runner.executorMap": {
+    "python": "\"C:\\Users\\tw188\\miniconda3\\envs\\ai\\python.exe\" -u"
+  },
+  "terminal.integrated.env.windows": {
+    "PATH": "C:\\Users\\tw188\\miniconda3\\envs\\ai;C:\\Users\\tw188\\miniconda3\\envs\\ai\\Scripts;C:\\Users\\tw188\\miniconda3\\envs\\ai\\Library\\bin;C:\\Users\\tw188\\miniconda3\\condabin;${env:PATH}"
+  }
 }
