@@ -1,4 +1,5 @@
 import torch
+import time
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms
@@ -12,7 +13,7 @@ transform = transforms.Compose([
 train_dataset = datasets.MNIST(root="./data", train=True, download=False, transform=transform)
 test_dataset = datasets.MNIST(root="./data", train=False, download=False, transform=transform)
 
-train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=125, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=1000, shuffle=False)
 
 class Net(nn.Module):
@@ -36,8 +37,8 @@ class Net(nn.Module):
 model = Net()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-for epoch in range(1):
+start_time = time.time()
+for epoch in range(3):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         optimizer.zero_grad()
@@ -59,3 +60,4 @@ with torch.no_grad():
         total += target.size(0)
 
 print(f"Test Accuracy: {correct / total * 100:.2f}%")
+print(f"Total Time: {time.time() - start_time:.2f} seconds")
