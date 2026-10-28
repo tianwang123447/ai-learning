@@ -1,56 +1,92 @@
-# AI Learning
+# MNIST CNN：复现与超参对照实验
 
-## Day 1
-- Python 基础
+用 PyTorch 从零实现一个 CNN 做手写数字识别，重点不在"跑通"，而在**用可复现的方式验证每一个结论**。
 
-## Day 2
-- 函数、类、文件读写
-- NumPy、Matplotlib
+## 结果一览
 
-## Day 3
-- PyTorch 安装
-- MNIST 手写数字识别，CNN
-- 测试准确率：98.27%
+| 配置 | 测试准确率 | 训练耗时 | 备注 |
+|---|---|---|---|
+| `batch=64, epochs=1`（基线，重复 3 次） | **98.43% ± 0.23**（98.18 ~ 98.63） | 13.14 s | 3 次独立运行 |
+| `batch=125, epochs=1` | 98.09% | — | 与基线差 0.18 pp，**小于基线自身波动** |
+| `batch=128, epochs=3` | 98.96% | 35.92 s | |
+| `batch=64, epochs=3` | **99.03%** | 45.64 s | 逐轮 loss：0.1407 → 0.0429 → 0.0295 |
 
-## 环境
-- Conda 环境 `ai`：`C:\Users\tw188\miniconda3\envs\ai\python.exe`
-- Python 3.10 / PyTorch 2.14.1+cpu / torchvision 0.29.1+cpu
+环境：Python 3.10 / PyTorch 2.14.1+**cpu** / 16 线程，无 GPU。
 
-> 注意：系统 PATH 里的 `python` 是 MSYS2 3.14 或 Windows Store 的占位程序，**都没有 PyTorch**。
-> 而且 `conda` 没有加入 PATH，`conda activate ai` 会报“无法识别 conda”。所以直接 `python mnist.py` 跑不了。
+## 模型
+
+```
+input [B, 1, 28, 28]
+  conv1   Conv2d(1, 32, 3, padding=1) → ReLU → MaxPool2d(2)   → [B, 32, 14, 14]
+  conv2   Conv2d(32, 64, 3, padding=1) → ReLU → MaxPool2d(2)  → [B, 64,  7,  7]
+  flatten view(B, -1)                                          → [B, 3136]
+  fc1     Linear(3136, 128) → ReLU                             → [B, 128]
+  fc2     Linear(128, 10)                                      → [B, 10]
+```
+
+## 三个结论
+
+### 1. 单个 batch 的 loss 不能当模型指标
+
+同一轮训练内统计 938 个 batch 的 loss：
+
+| 指标 | 值 |
+|---|---|
+| 均值 | 0.1407 |
+| 标准差 | 0.2389（**相对波动 170%**） |
+| 最小 / 最大 | 0.0024 / 2.3063（**相差 962 倍**） |
+| 低于 0.05 的批次占比 | 28.7% |
+
+原因：均值 0.14 是被约 1.6% 的错题撑起来的（`0.984×0.06 + 0.016×5 ≈ 0.14`），"这一批里有没有错题"直接决定 loss 大小。
+
+**结论**：用 epoch 平均 loss（实测 0.136–0.141，稳定可复现），不用某个 batch 的瞬时值。
+
+### 2. `batch_size` 64 → 125：准确率差异测不出来，耗时也没改善
+
+- 准确率差 0.18 pp，**小于基线 3 次重复的波动范围 0.45 pp** → 当前测试集分辨率不足以判定方向
+- 耗时 13.1 s → 13.9 s，**反而略慢**，与"加大 batch 会变快"的预期相反
+
+机制：28×28 输入下每个 batch 的计算量本来就小，时间主要花在**每个 batch 的固定开销**（Python 层调度、线程同步），16 线程已把计算单元跑满。加大 batch 只减少 batch 数，不减少总开销。
+
+### 3. 1 个 epoch 根本没收敛完
+
+`batch=64` 跑 3 轮，逐轮平均 loss：
+
+```
+0.1407  →  0.0429 (-70%)  →  0.0295
+```
+
+**这解释了结论 2**：1 个 epoch 下模型尚未收敛，而加大 `batch_size` 会让更新次数从 938 降到 469，进一步加剧训练不足 —— 所以准确率不可能上升。
+
+**也就是说，实验 1 的"预判方向对了"，但实验设计本身不成立**：它测的是一个还没收敛的状态，而不是 `batch_size` 的稳定影响。
+
+## 文件
+
+| 文件 | 用途 |
+|---|---|
+| `mnist.py` | 主脚本：训练 + 测试 |
+| `baseline3.py` | 基线重复 3 次，给出均值与波动范围 |
+| `epochs3.py` | `epochs=3` 对照，记录逐轮 loss |
+| `loss_variance.py` | 统计单 batch loss 的分布（结论 1 的证据） |
+| `experiments.md` | 完整实验记录（含"为什么"清单） |
 
 ## 运行
 
-VS Code 里三种方式任选（`.vscode/` 已配好，指到 `ai` 环境）：
+数据集放在 `./data/MNIST/raw/`，代码里 `download=False` 离线加载。
 
-1. **终端**：新开一个终端，直接 `python mnist.py`（`.vscode/settings.json` 已把 `ai` 环境加进终端 PATH）
-2. **F5**：选 `Python: mnist.py (ai env)`（`.vscode/launch.json` 里写死了绝对路径）
-3. **右上角三角按钮**：需要解释器选中 `ai`。`Ctrl+Shift+P` → `Python: Select Interpreter` → 选 `Python 3.10.22 ('ai': conda)`。之前它用的是 MSYS2 的 Python 3.14，所以报 `No module named 'torch'`
+```bash
+python mnist.py
+```
 
-不依赖 VS Code 的兜底命令（任何终端都能用）：
+若 `python` 指向的系统解释器没有 PyTorch，直接指定：
 
 ```powershell
 & "C:\Users\tw188\miniconda3\envs\ai\python.exe" mnist.py
 ```
 
-`conda` 没有加入 PATH，直接 `conda activate ai` 会报“无法识别 conda”。要修的话执行一次：
+## 实验方法（我认为这部分比结果更重要）
 
-```powershell
-& "C:\Users\tw188\miniconda3\condabin\conda.bat" init powershell
-```
-
-MNIST 数据集放在 `./data/MNIST/raw/`，代码里 `download=False` 离线加载。
-
-
-## 实验记录 1：batch_size 的影响
-- **基线**：batch_size=64, epochs=1, Test Accuracy=98.27%
-- **实验**：batch_size=128, epochs=1, Test Accuracy=98.09%, Loss=0.0237, 耗时=14.33s
-- **分析**：batch_size 增大导致单轮迭代次数减半（938 -> 469），参数更新次数减少，单轮 1 epoch 下准确率微降。需增加 epochs 以充分收敛。
-
-
-## 实验记录 1：batch_size 的影响
-- **基线**：batch_size=64, epochs=1, Test Accuracy=98.27%
-- **实验 A**：batch_size=128, epochs=1, Test Accuracy=98.09%, Loss=0.0237, 耗时=14.33s
-  - 分析：batch_size 增大导致单轮迭代次数减半，参数更新减少，单轮 1 epoch 下准确率微降。
-- **实验 B**：batch_size=128, epochs=3, Test Accuracy=98.96%, 耗时=35.92s
-  - 分析：通过增加 epoch 弥补更新次数，模型充分收敛，准确率提升。
+1. **一次只改一个变量**，预判写在跑之前
+2. **同一配置重复 3 次**，报均值和波动范围，不报单次结果
+3. **负结果照实记录**，不隐藏与预期相反的结论
+4. 区分"过程量"与"指标量"（单 batch loss vs epoch 平均 loss）
