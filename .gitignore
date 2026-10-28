@@ -5,5 +5,7 @@ data/
 __pycache__/
 *.pyc
 
-# 个人材料（简历含手机号、成绩单等，不入库）
+# 个人材料（简历含手机号、学号、绩点；计划含个人安排）
 mentor/
+PLAN.md
+PLAN.md.txt
